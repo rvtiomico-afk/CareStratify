@@ -1,0 +1,1246 @@
+```html
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-900">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CareStratify PHM - Real-Time Population Health Risk Stratification</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Font: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Chart.js for Risk Radar & Gauges -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- QRCode.js library for client-side QR generation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            tier1: { DEFAULT: '#10b981', light: '#ecfdf5', dark: '#047857' }, // Low Risk Emerald
+            tier2: { DEFAULT: '#f59e0b', light: '#fffbeb', dark: '#b45309' }, // Rising Risk Amber
+            tier3: { DEFAULT: '#ea580c', light: '#fff7ed', dark: '#c2410c' }, // High Risk Orange
+            tier4: { DEFAULT: '#dc2626', light: '#fef2f2', dark: '#991b1b' }, // Very High Risk Crimson
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom CSS for smooth transitions and printing */
+    body { font-family: 'Inter', sans-serif; }
+    
+    .pyramid-tier {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .pyramid-tier.active-tier {
+      transform: scale(1.03);
+      filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.4));
+    }
+
+    .pulse-badge {
+      animation: pulse-ring 2s infinite;
+    }
+
+    @keyframes pulse-ring {
+      0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.5); }
+      70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+    }
+
+    /* Print styles for generating clean reports */
+    @media print {
+      body { background-color: #ffffff !important; color: #000000 !important; }
+      .no-print { display: none !important; }
+      .print-only { display: block !important; }
+      .print-card { border: 1px solid #ccc !important; box-shadow: none !important; }
+    }
+    .print-only { display: none; }
+  </style>
+</head>
+
+<body class="min-h-full flex flex-col bg-slate-950 text-slate-100 antialiased selection:bg-blue-500 selection:text-white">
+
+  <!-- Top Navigation Header -->
+  <header class="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 py-3 sm:px-6">
+    <div class="max-w-7xl mx-auto flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-400 flex items-center justify-center shadow-lg shadow-blue-500/20">
+          <i class="fa-solid font-bold text-white text-xl fa-diagram-project"></i>
+        </div>
+        <div>
+          <h1 class="text-lg sm:text-xl font-bold bg-gradient-to-r from-white via-slate-100 to-slate-300 bg-clip-text text-transparent">
+            CareStratify <span class="text-blue-400 font-semibold text-xs sm:text-sm uppercase tracking-wider ml-1">PHM Engine</span>
+          </h1>
+          <p class="text-xs text-slate-400 hidden sm:block">Population Health Management Risk Stratification Platform</p>
+        </div>
+      </div>
+
+      <!-- Header Right Controls -->
+      <div class="flex items-center space-x-2">
+        <button onclick="openInfoModal()" class="px-3 py-1.5 rounded-lg text-xs sm:text-sm bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center gap-1.5">
+          <i class="fa-solid fa-circle-info text-blue-400"></i>
+          <span class="hidden md:inline">Framework Info</span>
+        </button>
+        <button onclick="openQRShareModal()" class="px-3 py-1.5 rounded-lg text-xs sm:text-sm bg-blue-600 hover:bg-blue-500 text-white font-medium transition shadow-md shadow-blue-600/30 flex items-center gap-1.5">
+          <i class="fa-solid fa-qrcode"></i>
+          <span>Share QR</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Quick Demo Profiles Banner -->
+  <div class="bg-slate-900/60 border-b border-slate-800 px-4 py-2.5">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2 text-xs">
+      <div class="flex items-center gap-2 text-slate-400 font-medium">
+        <i class="fa-solid fa-bolt text-amber-400"></i>
+        <span>Quick Load Test Profiles:</span>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <button onclick="loadPreset('healthy')" class="px-2.5 py-1 rounded-md bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-700/50 text-emerald-300 font-medium transition">
+          <i class="fa-solid fa-heart-pulse mr-1"></i> Tier 1 (Healthy)
+        </button>
+        <button onclick="loadPreset('rising')" class="px-2.5 py-1 rounded-md bg-amber-950/80 hover:bg-amber-900 border border-amber-700/50 text-amber-300 font-medium transition">
+          <i class="fa-solid fa-person-walking mr-1"></i> Tier 2 (Rising Risk)
+        </button>
+        <button onclick="loadPreset('complex')" class="px-2.5 py-1 rounded-md bg-orange-950/80 hover:bg-orange-900 border border-orange-700/50 text-orange-300 font-medium transition">
+          <i class="fa-solid fa-triangle-exclamation mr-1"></i> Tier 3 (High SDOH)
+        </button>
+        <button onclick="loadPreset('veryhigh')" class="px-2.5 py-1 rounded-md bg-red-950/80 hover:bg-red-900 border border-red-700/50 text-red-300 font-medium transition">
+          <i class="fa-solid fa-hospital-user mr-1"></i> Tier 4 (Complex High)
+        </button>
+        <button onclick="resetForm()" class="px-2 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 transition">
+          <i class="fa-solid fa-rotate-left mr-1"></i> Reset
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content Layout -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <!-- LEFT COLUMN: Patient Intake Assessment Form (Cols 1 to 5) -->
+    <section class="lg:col-span-5 flex flex-col gap-5">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xl relative overflow-hidden">
+        
+        <!-- Section Header -->
+        <div class="flex items-center justify-between pb-4 mb-4 border-b border-slate-800">
+          <div>
+            <h2 class="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-clipboard-user text-blue-400"></i>
+              Patient Risk Intake
+            </h2>
+            <p class="text-xs text-slate-400">Complete clinical & social indicators for real-time scoring</p>
+          </div>
+          <span class="text-xs bg-blue-950 text-blue-300 border border-blue-800/60 px-2.5 py-1 rounded-full font-medium">
+            Live Sync
+          </span>
+        </div>
+
+        <!-- Form Step Tabs Navigation (Mobile Friendly) -->
+        <div class="grid grid-cols-4 gap-1 bg-slate-950 p-1 rounded-xl mb-5 text-center text-xs font-medium">
+          <button type="button" onclick="switchStep(1)" id="step-tab-1" class="step-tab py-2 rounded-lg bg-blue-600 text-white transition">
+            1. Demo
+          </button>
+          <button type="button" onclick="switchStep(2)" id="step-tab-2" class="step-tab py-2 rounded-lg text-slate-400 hover:text-white transition">
+            2. Clinical
+          </button>
+          <button type="button" onclick="switchStep(3)" id="step-tab-3" class="step-tab py-2 rounded-lg text-slate-400 hover:text-white transition">
+            3. System
+          </button>
+          <button type="button" onclick="switchStep(4)" id="step-tab-4" class="step-tab py-2 rounded-lg text-slate-400 hover:text-white transition">
+            4. SDOH
+          </button>
+        </div>
+
+        <form id="risk-assessment-form" onchange="calculateRisk()" oninput="calculateRisk()" onsubmit="event.preventDefault(); text-slate-200">
+
+          <!-- STEP 1: Demographics & PCP Connection -->
+          <div id="step-content-1" class="step-content space-y-4">
+            <h3 class="text-xs font-semibold uppercase tracking-wider text-blue-400 flex items-center gap-1.5">
+              <i class="fa-solid fa-user"></i> Section 1: Demographics & Primary Care
+            </h3>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Patient Age Group</label>
+              <select id="age-group" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                <option value="18-39">18 – 39 years</option>
+                <option value="40-64" selected>40 – 64 years</option>
+                <option value="65-74">65 – 74 years (Senior)</option>
+                <option value="75+">75+ years (High Risk Senior)</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Primary Care Physician (PCP) Visits (Last 12 Months)</label>
+              <select id="pcp-visits" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                <option value="routine" selected>1 – 2 visits (Up-to-date routine care)</option>
+                <option value="frequent">3+ visits (Active management)</option>
+                <option value="none">0 visits (Care Gap / Unengaged)</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Health Insurance Coverage Status</label>
+              <select id="insurance-status" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                <option value="commercial" selected>Commercial / Employer-Based</option>
+                <option value="medicare">Medicare</option>
+                <option value="medicaid">Medicaid / Dual Eligible</option>
+                <option value="uninsured">Uninsured / Self-Pay</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- STEP 2: Chronic Conditions & Biometrics -->
+          <div id="step-content-2" class="step-content space-y-4 hidden">
+            <h3 class="text-xs font-semibold uppercase tracking-wider text-blue-400 flex items-center gap-1.5">
+              <i class="fa-solid fa-heart-pulse"></i> Section 2: Chronic Conditions & Control
+            </h3>
+
+            <p class="text-xs text-slate-400">Select all active diagnosed chronic conditions:</p>
+
+            <div class="grid grid-cols-2 gap-2 text-xs">
+              <label class="flex items-center p-2.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 cursor-pointer space-x-2">
+                <input type="checkbox" id="cond-diabetes" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 bg-slate-900 border-slate-700">
+                <span class="text-slate-200">Type 2 Diabetes</span>
+              </label>
+
+              <label class="flex items-center p-2.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 cursor-pointer space-x-2">
+                <input type="checkbox" id="cond-htn" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 bg-slate-900 border-slate-700">
+                <span class="text-slate-200">Hypertension</span>
+              </label>
+
+              <label class="flex items-center p-2.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 cursor-pointer space-x-2">
+                <input type="checkbox" id="cond-chf" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 bg-slate-900 border-slate-700">
+                <span class="text-slate-200">Heart Failure (CHF)</span>
+              </label>
+
+              <label class="flex items-center p-2.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 cursor-pointer space-x-2">
+                <input type="checkbox" id="cond-copd" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 bg-slate-900 border-slate-700">
+                <span class="text-slate-200">COPD / Severe Asthma</span>
+              </label>
+
+              <label class="flex items-center p-2.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 cursor-pointer space-x-2">
+                <input type="checkbox" id="cond-ckd" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 bg-slate-900 border-slate-700">
+                <span class="text-slate-200">Chronic Kidney Disease</span>
+              </label>
+
+              <label class="flex items-center p-2.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 cursor-pointer space-x-2">
+                <input type="checkbox" id="cond-depression" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 bg-slate-900 border-slate-700">
+                <span class="text-slate-200">Depression / MH</span>
+              </label>
+            </div>
+
+            <div class="pt-2 border-t border-slate-800 space-y-3">
+              <label class="flex items-center justify-between p-2.5 rounded-xl bg-slate-950 border border-slate-800 cursor-pointer">
+                <span class="text-xs text-slate-300">Uncontrolled Biometrics (HbA1c &gt; 8.5% or BP &gt; 140/90)</span>
+                <input type="checkbox" id="uncontrolled-biometrics" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 bg-slate-900 border-slate-700">
+              </label>
+
+              <label class="flex items-center justify-between p-2.5 rounded-xl bg-slate-950 border border-slate-800 cursor-pointer">
+                <span class="text-xs text-slate-300">Polypharmacy (&gt; 8 Daily Prescription Meds)</span>
+                <input type="checkbox" id="polypharmacy" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 bg-slate-900 border-slate-700">
+              </label>
+            </div>
+          </div>
+
+          <!-- STEP 3: Healthcare System Utilization -->
+          <div id="step-content-3" class="step-content space-y-4 hidden">
+            <h3 class="text-xs font-semibold uppercase tracking-wider text-blue-400 flex items-center gap-1.5">
+              <i class="fa-solid fa-hospital"></i> Section 3: System Utilization (Past 12m)
+            </h3>
+
+            <div>
+              <div class="flex justify-between items-center mb-1">
+                <label class="text-xs font-medium text-slate-300">Emergency Department (ER) Visits</label>
+                <span id="er-count-display" class="text-xs font-bold text-blue-400">0 visits</span>
+              </div>
+              <input type="range" id="er-visits" min="0" max="6" value="0" class="w-full accent-blue-500 cursor-pointer">
+              <div class="flex justify-between text-[10px] text-slate-500 px-1">
+                <span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5+</span>
+              </div>
+            </div>
+
+            <div>
+              <div class="flex justify-between items-center mb-1">
+                <label class="text-xs font-medium text-slate-300">Inpatient Hospital Admissions</label>
+                <span id="inpatient-count-display" class="text-xs font-bold text-blue-400">0 admissions</span>
+              </div>
+              <input type="range" id="inpatient-admissions" min="0" max="4" value="0" class="w-full accent-blue-500 cursor-pointer">
+              <div class="flex justify-between text-[10px] text-slate-500 px-1">
+                <span>0</span><span>1</span><span>2</span><span>3</span><span>4+</span>
+              </div>
+            </div>
+
+            <div class="pt-2">
+              <label class="flex items-center justify-between p-2.5 rounded-xl bg-slate-950 border border-slate-800 cursor-pointer">
+                <span class="text-xs text-slate-300">30-Day Hospital Readmission History</span>
+                <input type="checkbox" id="readmission-history" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 bg-slate-900 border-slate-700">
+              </label>
+            </div>
+          </div>
+
+          <!-- STEP 4: Social Determinants of Health (SDOH) Screening -->
+          <div id="step-content-4" class="step-content space-y-4 hidden">
+            <h3 class="text-xs font-semibold uppercase tracking-wider text-blue-400 flex items-center gap-1.5">
+              <i class="fa-solid fa-hand-holding-hand"></i> Section 4: SDOH Barriers Screening
+            </h3>
+
+            <p class="text-xs text-slate-400">Check all social & economic barriers present:</p>
+
+            <div class="space-y-2 text-xs">
+              <label class="flex items-start p-2.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 cursor-pointer space-x-2.5">
+                <input type="checkbox" id="sdoh-housing" class="mt-0.5 w-4 h-4 rounded text-blue-600 focus:ring-blue-500 bg-slate-900 border-slate-700">
+                <div>
+                  <span class="font-medium text-slate-200 block">Housing Instability / Eviction Risk</span>
+                  <span class="text-[11px] text-slate-400">Unsafe environment or temporary living arrangement</span>
+                </div>
+              </label>
+
+              <label class="flex items-start p-2.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 cursor-pointer space-x-2.5">
+                <input type="checkbox" id="sdoh-food" class="mt-0.5 w-4 h-4 rounded text-blue-600 focus:ring-blue-500 bg-slate-900 border-slate-700">
+                <div>
+                  <span class="font-medium text-slate-200 block">Food Insecurity</span>
+                  <span class="text-[11px] text-slate-400">Inability to afford balanced, nutritious food regularly</span>
+                </div>
+              </label>
+
+              <label class="flex items-start p-2.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 cursor-pointer space-x-2.5">
+                <input type="checkbox" id="sdoh-transport" class="mt-0.5 w-4 h-4 rounded text-blue-600 focus:ring-blue-500 bg-slate-900 border-slate-700">
+                <div>
+                  <span class="font-medium text-slate-200 block">Transportation Barriers</span>
+                  <span class="text-[11px] text-slate-400">Lacks reliable transport for doctor appointments or therapy</span>
+                </div>
+              </label>
+
+              <label class="flex items-start p-2.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 cursor-pointer space-x-2.5">
+                <input type="checkbox" id="sdoh-rx" class="mt-0.5 w-4 h-4 rounded text-blue-600 focus:ring-blue-500 bg-slate-900 border-slate-700">
+                <div>
+                  <span class="font-medium text-slate-200 block">Medication Affordability / Cost Barrier</span>
+                  <span class="text-[11px] text-slate-400">Skips doses or ration medications due to high copays</span>
+                </div>
+              </label>
+
+              <label class="flex items-start p-2.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 cursor-pointer space-x-2.5">
+                <input type="checkbox" id="sdoh-isolation" class="mt-0.5 w-4 h-4 rounded text-blue-600 focus:ring-blue-500 bg-slate-900 border-slate-700">
+                <div>
+                  <span class="font-medium text-slate-200 block">Severe Stress / Living Alone / Social Isolation</span>
+                  <span class="text-[11px] text-slate-400">Lacks caregiver support or reports high psychological stress</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Wizard Step Buttons Footer -->
+          <div class="mt-5 pt-4 border-t border-slate-800 flex justify-between items-center">
+            <button type="button" id="prev-step-btn" onclick="prevStep()" class="px-3.5 py-2 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 transition opacity-50 cursor-not-allowed" disabled>
+              <i class="fa-solid fa-arrow-left mr-1"></i> Back
+            </button>
+            <span class="text-xs text-slate-500" id="step-indicator">Step 1 of 4</span>
+            <button type="button" id="next-step-btn" onclick="nextStep()" class="px-4 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white transition flex items-center gap-1">
+              <span>Next</span> <i class="fa-solid fa-arrow-right"></i>
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- RIGHT COLUMN: Real-Time Results Dashboard (Cols 6 to 12) -->
+    <section class="lg:col-span-7 flex flex-col gap-5">
+      
+      <!-- Primary Tier Banner Card -->
+      <div id="tier-banner-card" class="rounded-2xl p-5 sm:p-6 transition-all duration-300 border shadow-2xl relative overflow-hidden bg-slate-900 border-emerald-500/50">
+        
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span id="tier-badge-pill" class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-900/80 text-emerald-300 border border-emerald-600">
+                Tier 1
+              </span>
+              <span id="sdoh-multiplier-tag" class="hidden px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-amber-950 text-amber-300 border border-amber-700">
+                <i class="fa-solid fa-triangle-exclamation mr-1"></i> SDOH Risk Multiplier Active
+              </span>
+            </div>
+
+            <h2 id="tier-title" class="text-xl sm:text-2xl font-extrabold text-white">
+              Low Risk (Healthy Population)
+            </h2>
+            <p id="tier-description" class="text-xs sm:text-sm text-slate-300 mt-1 max-w-xl">
+              Non-chronic or well-managed conditions with low health system utilization and stable social determinants.
+            </p>
+          </div>
+
+          <!-- Overall Composite Score Box -->
+          <div class="flex sm:flex-col items-center justify-between sm:justify-center bg-slate-950/80 border border-slate-800 p-3 sm:p-4 rounded-xl text-center min-w-[110px]">
+            <span class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">PHM Risk Score</span>
+            <div id="total-score-value" class="text-3xl font-black text-emerald-400 my-0.5">12</div>
+            <span id="risk-category-label" class="text-[10px] font-semibold text-emerald-300">LOW</span>
+          </div>
+        </div>
+
+        <!-- Key Risk Drivers Bar -->
+        <div class="mt-4 pt-3 border-t border-slate-800/80 flex flex-wrap items-center gap-2 text-xs">
+          <span class="text-slate-400 font-medium">Primary Risk Drivers:</span>
+          <div id="risk-drivers-container" class="flex flex-wrap gap-1.5">
+            <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-[11px]">Routine Preventive Care</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Interactive PHM Population Risk Pyramid Card -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-layer-group text-blue-400"></i>
+              Population Risk Pyramid Hierarchy
+            </h3>
+            <p class="text-xs text-slate-400">Visual mapping of patient placement across population tiers</p>
+          </div>
+          <span class="text-[11px] text-slate-400 bg-slate-800 px-2.5 py-1 rounded-lg">Standard PHM 4-Tier Model</span>
+        </div>
+
+        <!-- Visual Pyramid Graphic -->
+        <div class="space-y-2 py-2">
+          
+          <!-- Tier 4 Block -->
+          <div id="pyramid-tier-4" class="pyramid-tier bg-slate-950 border border-slate-800 rounded-xl p-3 flex items-center justify-between relative overflow-hidden transition cursor-pointer" onclick="setManualTier(4)">
+            <div class="flex items-center space-x-3 z-10">
+              <div class="w-7 h-7 rounded-lg bg-red-950 border border-red-600 flex items-center justify-center font-bold text-xs text-red-400">T4</div>
+              <div>
+                <div class="text-xs font-bold text-white flex items-center gap-1.5">
+                  Tier 4: Very High Risk (Complex Care)
+                  <span id="indicator-t4" class="hidden text-[10px] bg-red-600 text-white px-2 py-0.5 rounded-full font-extrabold uppercase">Your Tier</span>
+                </div>
+                <div class="text-[11px] text-slate-400">Multiple active chronic illnesses, polypharmacy, severe utilization / SDOH</div>
+              </div>
+            </div>
+            <div class="text-right z-10">
+              <span class="text-xs font-extrabold text-red-400">~1% - 3%</span>
+              <div class="text-[10px] text-slate-500">of Population</div>
+            </div>
+            <div class="absolute inset-y-0 left-0 bg-red-950/20 border-r-2 border-red-600/40 w-[20%] pointer-events-none"></div>
+          </div>
+
+          <!-- Tier 3 Block -->
+          <div id="pyramid-tier-3" class="pyramid-tier bg-slate-950 border border-slate-800 rounded-xl p-3 flex items-center justify-between relative overflow-hidden transition cursor-pointer" onclick="setManualTier(3)">
+            <div class="flex items-center space-x-3 z-10">
+              <div class="w-7 h-7 rounded-lg bg-orange-950 border border-orange-600 flex items-center justify-center font-bold text-xs text-orange-400">T3</div>
+              <div>
+                <div class="text-xs font-bold text-white flex items-center gap-1.5">
+                  Tier 3: High Risk (Comorbid / SDOH Barriers)
+                  <span id="indicator-t3" class="hidden text-[10px] bg-orange-600 text-white px-2 py-0.5 rounded-full font-extrabold uppercase">Your Tier</span>
+                </div>
+                <div class="text-[11px] text-slate-400">Uncontrolled chronic condition, frequent ER visits, or high social risk</div>
+              </div>
+            </div>
+            <div class="text-right z-10">
+              <span class="text-xs font-extrabold text-orange-400">~3% - 5%</span>
+              <div class="text-[10px] text-slate-500">of Population</div>
+            </div>
+            <div class="absolute inset-y-0 left-0 bg-orange-950/20 border-r-2 border-orange-600/40 w-[40%] pointer-events-none"></div>
+          </div>
+
+          <!-- Tier 2 Block -->
+          <div id="pyramid-tier-2" class="pyramid-tier bg-slate-950 border border-slate-800 rounded-xl p-3 flex items-center justify-between relative overflow-hidden transition cursor-pointer" onclick="setManualTier(2)">
+            <div class="flex items-center space-x-3 z-10">
+              <div class="w-7 h-7 rounded-lg bg-amber-950 border border-amber-600 flex items-center justify-center font-bold text-xs text-amber-400">T2</div>
+              <div>
+                <div class="text-xs font-bold text-white flex items-center gap-1.5">
+                  Tier 2: Rising Risk (Early Intervention)
+                  <span id="indicator-t2" class="hidden text-[10px] bg-amber-600 text-white px-2 py-0.5 rounded-full font-extrabold uppercase">Your Tier</span>
+                </div>
+                <div class="text-[11px] text-slate-400">Single condition, prediabetes, or care gaps requiring targeted coaching</div>
+              </div>
+            </div>
+            <div class="text-right z-10">
+              <span class="text-xs font-extrabold text-amber-400">~15% - 20%</span>
+              <div class="text-[10px] text-slate-500">of Population</div>
+            </div>
+            <div class="absolute inset-y-0 left-0 bg-amber-950/20 border-r-2 border-amber-600/40 w-[65%] pointer-events-none"></div>
+          </div>
+
+          <!-- Tier 1 Block -->
+          <div id="pyramid-tier-1" class="pyramid-tier bg-slate-950 border border-slate-800 rounded-xl p-3 flex items-center justify-between relative overflow-hidden transition cursor-pointer" onclick="setManualTier(1)">
+            <div class="flex items-center space-x-3 z-10">
+              <div class="w-7 h-7 rounded-lg bg-emerald-950 border border-emerald-600 flex items-center justify-center font-bold text-xs text-emerald-400">T1</div>
+              <div>
+                <div class="text-xs font-bold text-white flex items-center gap-1.5">
+                  Tier 1: Low Risk (Healthy / Well-Managed)
+                  <span id="indicator-t1" class="hidden text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-full font-extrabold uppercase">Your Tier</span>
+                </div>
+                <div class="text-[11px] text-slate-400">Healthy baseline, regular preventive care, low system utilization</div>
+              </div>
+            </div>
+            <div class="text-right z-10">
+              <span class="text-xs font-extrabold text-emerald-400">~70% - 80%</span>
+              <div class="text-[10px] text-slate-500">of Population</div>
+            </div>
+            <div class="absolute inset-y-0 left-0 bg-emerald-950/20 border-r-2 border-emerald-600/40 w-[95%] pointer-events-none"></div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Dual Sub-Score Gauges (Clinical vs Social SDOH) -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        
+        <!-- Gauge 1: Clinical Risk -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between text-xs text-slate-400 mb-1">
+              <span class="font-semibold text-slate-300">Clinical Risk</span>
+              <i class="fa-solid fa-stethoscope text-blue-400"></i>
+            </div>
+            <div class="flex items-baseline space-x-1">
+              <span id="clinical-score-val" class="text-2xl font-bold text-white">10</span>
+              <span class="text-xs text-slate-500">/ 100</span>
+            </div>
+          </div>
+          <div class="w-full bg-slate-950 rounded-full h-2.5 mt-3 overflow-hidden border border-slate-800">
+            <div id="clinical-score-bar" class="bg-blue-500 h-2.5 rounded-full transition-all duration-500" style="width: 10%"></div>
+          </div>
+        </div>
+
+        <!-- Gauge 2: System Utilization -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between text-xs text-slate-400 mb-1">
+              <span class="font-semibold text-slate-300">Utilization Risk</span>
+              <i class="fa-solid fa-hospital-user text-purple-400"></i>
+            </div>
+            <div class="flex items-baseline space-x-1">
+              <span id="utilization-score-val" class="text-2xl font-bold text-white">0</span>
+              <span class="text-xs text-slate-500">/ 100</span>
+            </div>
+          </div>
+          <div class="w-full bg-slate-950 rounded-full h-2.5 mt-3 overflow-hidden border border-slate-800">
+            <div id="utilization-score-bar" class="bg-purple-500 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <!-- Gauge 3: SDOH Social Risk -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between text-xs text-slate-400 mb-1">
+              <span class="font-semibold text-slate-300">Social (SDOH) Risk</span>
+              <i class="fa-solid fa-handshake-angle text-amber-400"></i>
+            </div>
+            <div class="flex items-baseline space-x-1">
+              <span id="sdoh-score-val" class="text-2xl font-bold text-white">0</span>
+              <span class="text-xs text-slate-500">/ 100</span>
+            </div>
+          </div>
+          <div class="w-full bg-slate-950 rounded-full h-2.5 mt-3 overflow-hidden border border-slate-800">
+            <div id="sdoh-score-bar" class="bg-amber-500 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Actionable Care Management Recommendations Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        
+        <!-- Clinical Action Plan -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-3">
+              <h4 class="text-xs font-bold uppercase tracking-wider text-blue-400 flex items-center gap-1.5">
+                <i class="fa-solid fa-user-doctor"></i> Clinical Intervention Plan
+              </h4>
+              <span id="clinical-urgency-tag" class="text-[10px] px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 font-semibold border border-emerald-800">Routine</span>
+            </div>
+            <ul id="clinical-action-list" class="space-y-2 text-xs text-slate-300">
+              <li class="flex items-start gap-2">
+                <i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>
+                <span>Maintain annual routine wellness exam with PCP.</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>
+                <span>Stay up-to-date with age-appropriate screenings & vaccines.</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Social & SDOH Support Plan -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-3">
+              <h4 class="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                <i class="fa-solid fa-people-roof"></i> Social & Community Plan
+              </h4>
+              <span id="sdoh-urgency-tag" class="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-400 font-semibold">Low Need</span>
+            </div>
+            <ul id="sdoh-action-list" class="space-y-2 text-xs text-slate-300">
+              <li class="flex items-start gap-2">
+                <i class="fa-solid fa-check text-amber-400 mt-0.5"></i>
+                <span>No urgent social determinant risks flagged.</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <i class="fa-solid fa-check text-amber-400 mt-0.5"></i>
+                <span>Provide community wellness & health literacy resources.</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Action Footer Buttons -->
+      <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+        <button onclick="window.print()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition flex items-center gap-2">
+          <i class="fa-solid fa-print text-slate-400"></i>
+          <span>Print / Save Medical Report</span>
+        </button>
+
+        <button onclick="openQRShareModal()" class="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-lg shadow-blue-600/30 transition flex items-center gap-2">
+          <i class="fa-solid fa-share-nodes"></i>
+          <span>Share Care Summary QR</span>
+        </button>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- MODAL 1: Share / QR Code Modal -->
+  <div id="qr-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
+      <button onclick="closeQRShareModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-lg">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <div class="text-center">
+        <div class="w-12 h-12 bg-blue-950 text-blue-400 rounded-2xl flex items-center justify-center mx-auto mb-3 border border-blue-800/60">
+          <i class="fa-solid fa-qrcode text-xl"></i>
+        </div>
+        <h3 class="text-lg font-bold text-white">Care Management QR Code</h3>
+        <p class="text-xs text-slate-400 mt-1">Scan to load this patient's real-time risk stratification summary on mobile</p>
+
+        <!-- QR Code Container -->
+        <div class="my-5 p-4 bg-white rounded-2xl inline-block shadow-lg" id="qrcode-container"></div>
+
+        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-left text-xs mb-4">
+          <div class="flex justify-between font-bold text-white mb-1">
+            <span>Stratification Snapshot</span>
+            <span id="modal-tier-badge" class="text-emerald-400">Tier 1 Low Risk</span>
+          </div>
+          <p id="modal-summary-text" class="text-slate-400 text-[11px]">Score: 12/100 | Clinical: Low | Utilization: Low | SDOH: Low</p>
+        </div>
+
+        <button onclick="copyShareableLink()" class="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition flex items-center justify-center gap-2">
+          <i class="fa-solid fa-copy"></i>
+          <span>Copy Summary to Clipboard</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: Framework Info Modal -->
+  <div id="info-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+      <button onclick="closeInfoModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-lg">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <h3 class="text-lg font-bold text-white flex items-center gap-2">
+        <i class="fa-solid fa-graduation-cap text-blue-400"></i>
+        Population Health Management (PHM) Risk Pyramid
+      </h3>
+
+      <div class="mt-4 space-y-4 text-xs text-slate-300 leading-relaxed">
+        <p>
+          Population Health Risk Stratification categorizes a health plan or health system population into distinct risk tiers based on clinical complexity, healthcare utilization, and Social Determinants of Health (SDOH).
+        </p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div class="bg-slate-950 p-3 rounded-xl border border-emerald-900/50">
+            <span class="font-bold text-emerald-400 text-xs">Tier 1: Low Risk (~70-80%)</span>
+            <p class="text-slate-400 mt-1">Healthy individuals. Goal: Prevent disease onset via wellness promotion and primary care.</p>
+          </div>
+          <div class="bg-slate-950 p-3 rounded-xl border border-amber-900/50">
+            <span class="font-bold text-amber-400 text-xs">Tier 2: Rising Risk (~15-20%)</span>
+            <p class="text-slate-400 mt-1">Single chronic condition or care gaps. Goal: Prevent disease progression with lifestyle coaching.</p>
+          </div>
+          <div class="bg-slate-950 p-3 rounded-xl border border-orange-900/50">
+            <span class="font-bold text-orange-400 text-xs">Tier 3: High Risk (~3-5%)</span>
+            <p class="text-slate-400 mt-1">Multiple chronic conditions or social barriers. Goal: Disease management and SDOH navigation.</p>
+          </div>
+          <div class="bg-slate-950 p-3 rounded-xl border border-red-900/50">
+            <span class="font-bold text-red-400 text-xs">Tier 4: Very High Risk (~1-3%)</span>
+            <p class="text-slate-400 mt-1">Frail, top 1% high utilizers. Goal: Intensive complex care management and home care.</p>
+          </div>
+        </div>
+
+        <div class="p-3 bg-blue-950/40 border border-blue-800/60 rounded-xl">
+          <span class="font-semibold text-blue-300 block mb-1">The SDOH Multiplier Effect</span>
+          <p class="text-slate-400">
+            Social barriers like housing instability or transportation loss act as force multipliers. A patient with moderate clinical risk facing severe SDOH barriers can easily convert into a high-utilizing Tier 3 or Tier 4 patient without social intervention.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast" class="fixed bottom-5 right-5 bg-blue-600 text-white text-xs px-4 py-3 rounded-xl shadow-2xl transition-all duration-300 transform translate-y-20 opacity-0 z-50 flex items-center gap-2">
+    <i class="fa-solid fa-circle-check"></i>
+    <span id="toast-msg">Notification Message</span>
+  </div>
+
+  <!-- JAVASCRIPT LOGIC ENGINE -->
+  <script>
+    // Global State
+    let currentStep = 1;
+    let currentTier = 1;
+    let qrcodeObj = null;
+
+    // Presets definitions
+    const PRESETS = {
+      healthy: {
+        age: '18-39',
+        pcp: 'routine',
+        insurance: 'commercial',
+        conditions: [],
+        uncontrolled: false,
+        polypharmacy: false,
+        er: 0,
+        inpatient: 0,
+        readmission: false,
+        sdoh: []
+      },
+      rising: {
+        age: '40-64',
+        pcp: 'routine',
+        insurance: 'commercial',
+        conditions: ['cond-htn'],
+        uncontrolled: true,
+        polypharmacy: false,
+        er: 0,
+        inpatient: 0,
+        readmission: false,
+        sdoh: []
+      },
+      complex: {
+        age: '40-64',
+        pcp: 'none',
+        insurance: 'medicaid',
+        conditions: ['cond-copd'],
+        uncontrolled: true,
+        polypharmacy: false,
+        er: 2,
+        inpatient: 0,
+        readmission: false,
+        sdoh: ['sdoh-housing', 'sdoh-transport', 'sdoh-rx']
+      },
+      veryhigh: {
+        age: '75+',
+        pcp: 'frequent',
+        insurance: 'medicare',
+        conditions: ['cond-diabetes', 'cond-htn', 'cond-chf', 'cond-copd'],
+        uncontrolled: true,
+        polypharmacy: true,
+        er: 4,
+        inpatient: 2,
+        readmission: true,
+        sdoh: ['sdoh-transport', 'sdoh-rx', 'sdoh-isolation']
+      }
+    };
+
+    // Main Stratification Engine
+    function calculateRisk() {
+      // 1. Gather Demographic & PCP Inputs
+      const ageGroup = document.getElementById('age-group').value;
+      const pcpVisits = document.getElementById('pcp-visits').value;
+      const insurance = document.getElementById('insurance-status').value;
+
+      // 2. Gather Clinical Conditions Inputs
+      const diabetes = document.getElementById('cond-diabetes').checked;
+      const htn = document.getElementById('cond-htn').checked;
+      const chf = document.getElementById('cond-chf').checked;
+      const copd = document.getElementById('cond-copd').checked;
+      const ckd = document.getElementById('cond-ckd').checked;
+      const depression = document.getElementById('cond-depression').checked;
+      const uncontrolled = document.getElementById('uncontrolled-biometrics').checked;
+      const polypharmacy = document.getElementById('polypharmacy').checked;
+
+      // 3. System Utilization
+      const erVisits = parseInt(document.getElementById('er-visits').value) || 0;
+      const inpatient = parseInt(document.getElementById('inpatient-admissions').value) || 0;
+      const readmission = document.getElementById('readmission-history').checked;
+
+      // Update UI slider counters
+      document.getElementById('er-count-display').innerText = `${erVisits} visit${erVisits === 1 ? '' : 's'}`;
+      document.getElementById('inpatient-count-display').innerText = `${inpatient} admission${inpatient === 1 ? '' : 's'}`;
+
+      // 4. SDOH Inputs
+      const housing = document.getElementById('sdoh-housing').checked;
+      const food = document.getElementById('sdoh-food').checked;
+      const transport = document.getElementById('sdoh-transport').checked;
+      const rxCost = document.getElementById('sdoh-rx').checked;
+      const isolation = document.getElementById('sdoh-isolation').checked;
+
+      // --- CALCULATE SUB-SCORES ---
+
+      // Clinical Score Calculation (0 - 100)
+      let clinicalScore = 0;
+      let conditionCount = 0;
+      if (diabetes) { clinicalScore += 15; conditionCount++; }
+      if (htn) { clinicalScore += 10; conditionCount++; }
+      if (chf) { clinicalScore += 25; conditionCount++; }
+      if (copd) { clinicalScore += 20; conditionCount++; }
+      if (ckd) { clinicalScore += 20; conditionCount++; }
+      if (depression) { clinicalScore += 10; conditionCount++; }
+
+      if (uncontrolled) clinicalScore += 15;
+      if (polypharmacy) clinicalScore += 15;
+      if (pcpVisits === 'none') clinicalScore += 15;
+      if (ageGroup === '65-74') clinicalScore += 10;
+      if (ageGroup === '75+') clinicalScore += 18;
+      clinicalScore = Math.min(100, clinicalScore);
+
+      // System Utilization Score (0 - 100)
+      let utilScore = 0;
+      utilScore += erVisits * 20;
+      utilScore += inpatient * 30;
+      if (readmission) utilScore += 25;
+      utilScore = Math.min(100, utilScore);
+
+      // SDOH Score (0 - 100)
+      let sdohScore = 0;
+      let sdohCount = 0;
+      if (housing) { sdohScore += 25; sdohCount++; }
+      if (food) { sdohScore += 20; sdohCount++; }
+      if (transport) { sdohScore += 20; sdohCount++; }
+      if (rxCost) { sdohScore += 20; sdohCount++; }
+      if (isolation) { sdohScore += 15; sdohCount++; }
+      if (insurance === 'uninsured' || insurance === 'medicaid') sdohScore += 10;
+      sdohScore = Math.min(100, sdohScore);
+
+      // --- COMPOSITE SCORE & SDOH MULTIPLIER ---
+      let rawComposite = Math.round((clinicalScore * 0.40) + (utilScore * 0.40) + (sdohScore * 0.20));
+
+      // SDOH Multiplier check
+      let hasSdohMultiplier = false;
+      if (sdohCount >= 2 && (conditionCount >= 1 || erVisits >= 1)) {
+        hasSdohMultiplier = true;
+        rawComposite += 15; // Boost score due to high social risk compound effect
+      }
+
+      const totalScore = Math.min(100, rawComposite);
+
+      // Assign Tier based on Score & Critical Triggers
+      let tier = 1;
+      if (totalScore >= 70 || inpatient >= 2 || (conditionCount >= 3 && erVisits >= 2)) {
+        tier = 4;
+      } else if (totalScore >= 45 || erVisits >= 2 || (hasSdohMultiplier && conditionCount >= 1)) {
+        tier = 3;
+      } else if (totalScore >= 20 || conditionCount >= 1 || uncontrolled || pcpVisits === 'none') {
+        tier = 2;
+      } else {
+        tier = 1;
+      }
+
+      currentTier = tier;
+
+      // Update Scores & Bar UI
+      document.getElementById('clinical-score-val').innerText = clinicalScore;
+      document.getElementById('clinical-score-bar').style.width = `${clinicalScore}%`;
+
+      document.getElementById('utilization-score-val').innerText = utilScore;
+      document.getElementById('utilization-score-bar').style.width = `${utilScore}%`;
+
+      document.getElementById('sdoh-score-val').innerText = sdohScore;
+      document.getElementById('sdoh-score-bar').style.width = `${sdohScore}%`;
+
+      document.getElementById('total-score-value').innerText = totalScore;
+
+      // Update SDOH Tag
+      const sdohTag = document.getElementById('sdoh-multiplier-tag');
+      if (hasSdohMultiplier) {
+        sdohTag.classList.remove('hidden');
+      } else {
+        sdohTag.classList.add('hidden');
+      }
+
+      // Update Risk Drivers Badges
+      updateDrivers(conditionCount, uncontrolled, erVisits, sdohCount, pcpVisits);
+
+      // Update Tier Visuals (Card Theme & Pyramid Highlight)
+      updateTierUI(tier, totalScore);
+
+      // Update Care Recommendation Actions
+      updateActionPlans(tier, clinicalScore, utilScore, sdohScore, housing, rxCost, transport, food);
+    }
+
+    // Risk Drivers Renderer
+    function updateDrivers(conditionCount, uncontrolled, erVisits, sdohCount, pcpVisits) {
+      const container = document.getElementById('risk-drivers-container');
+      container.innerHTML = '';
+
+      const drivers = [];
+
+      if (conditionCount >= 3) drivers.push({ label: 'Multi-morbidity (3+ Chronic)', color: 'bg-red-950 text-red-300 border-red-800' });
+      else if (conditionCount >= 1) drivers.push({ label: `${conditionCount} Chronic Condition(s)`, color: 'bg-amber-950 text-amber-300 border-amber-800' });
+
+      if (uncontrolled) drivers.push({ label: 'Uncontrolled Biometrics', color: 'bg-orange-950 text-orange-300 border-orange-800' });
+      if (erVisits >= 2) drivers.push({ label: `Frequent ER Visits (${erVisits}x)`, color: 'bg-red-950 text-red-300 border-red-800' });
+      else if (erVisits === 1) drivers.push({ label: '1 ER Visit Past Year', color: 'bg-slate-800 text-slate-300 border-slate-700' });
+
+      if (sdohCount >= 2) drivers.push({ label: `High SDOH Barriers (${sdohCount})`, color: 'bg-purple-950 text-purple-300 border-purple-800' });
+      if (pcpVisits === 'none') drivers.push({ label: 'Care Gap (No PCP Visit)', color: 'bg-slate-800 text-slate-300 border-slate-700' });
+
+      if (drivers.length === 0) {
+        drivers.push({ label: 'Routine Preventive Maintenance', color: 'bg-emerald-950 text-emerald-300 border-emerald-800' });
+      }
+
+      drivers.forEach(d => {
+        const badge = document.createElement('span');
+        badge.className = `px-2 py-0.5 rounded border font-medium text-[11px] ${d.color}`;
+        badge.innerText = d.label;
+        container.appendChild(badge);
+      });
+    }
+
+    // UI Tier Styling Renderer
+    function updateTierUI(tier, totalScore) {
+      const bannerCard = document.getElementById('tier-banner-card');
+      const badgePill = document.getElementById('tier-badge-pill');
+      const title = document.getElementById('tier-title');
+      const desc = document.getElementById('tier-description');
+      const scoreVal = document.getElementById('total-score-value');
+      const categoryLabel = document.getElementById('risk-category-label');
+
+      // Reset pyramid highlights
+      for (let i = 1; i <= 4; i++) {
+        const pyramidEl = document.getElementById(`pyramid-tier-${i}`);
+        const indicatorEl = document.getElementById(`indicator-t${i}`);
+        pyramidEl.classList.remove('active-tier', 'border-emerald-500', 'border-amber-500', 'border-orange-500', 'border-red-500', 'bg-slate-900');
+        pyramidEl.classList.add('bg-slate-950', 'border-slate-800');
+        indicatorEl.classList.add('hidden');
+      }
+
+      // Active pyramid highlight
+      const activePyramid = document.getElementById(`pyramid-tier-${tier}`);
+      const activeIndicator = document.getElementById(`indicator-t${tier}`);
+      activePyramid.classList.add('active-tier', 'bg-slate-900');
+      activeIndicator.classList.remove('hidden');
+
+      // Update according to tier
+      if (tier === 1) {
+        bannerCard.className = "rounded-2xl p-5 sm:p-6 transition-all duration-300 border shadow-2xl relative overflow-hidden bg-gradient-to-br from-slate-900 via-emerald-950/30 to-slate-900 border-emerald-500/50";
+        badgePill.className = "px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-950 text-emerald-300 border border-emerald-600";
+        badgePill.innerText = "Tier 1 • Low Risk";
+        title.innerText = "Low Risk (Healthy Population)";
+        desc.innerText = "Non-chronic or well-managed conditions with low health system utilization and stable social determinants.";
+        scoreVal.className = "text-3xl font-black text-emerald-400 my-0.5";
+        categoryLabel.innerText = "LOW RISK";
+        categoryLabel.className = "text-[10px] font-semibold text-emerald-300";
+        activePyramid.classList.add('border-emerald-500');
+
+      } else if (tier === 2) {
+        bannerCard.className = "rounded-2xl p-5 sm:p-6 transition-all duration-300 border shadow-2xl relative overflow-hidden bg-gradient-to-br from-slate-900 via-amber-950/30 to-slate-900 border-amber-500/50";
+        badgePill.className = "px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-950 text-amber-300 border border-amber-600";
+        badgePill.innerText = "Tier 2 • Rising Risk";
+        title.innerText = "Rising Risk (Lifestyle & Prevention Focus)";
+        desc.innerText = "Patient shows 1–2 uncontrolled risk factors or care gaps. Target early prevention to halt conversion to complex disease.";
+        scoreVal.className = "text-3xl font-black text-amber-400 my-0.5";
+        categoryLabel.innerText = "RISING RISK";
+        categoryLabel.className = "text-[10px] font-semibold text-amber-300";
+        activePyramid.classList.add('border-amber-500');
+
+      } else if (tier === 3) {
+        bannerCard.className = "rounded-2xl p-5 sm:p-6 transition-all duration-300 border shadow-2xl relative overflow-hidden bg-gradient-to-br from-slate-900 via-orange-950/30 to-slate-900 border-orange-500/50";
+        badgePill.className = "px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-orange-950 text-orange-300 border border-orange-600";
+        badgePill.innerText = "Tier 3 • High Risk";
+        title.innerText = "High Risk (Complex Care & SDOH Navigation)";
+        desc.innerText = "Multiple chronic comorbidities, frequent ER encounters, or elevated social determinants. Multidisciplinary intervention required.";
+        scoreVal.className = "text-3xl font-black text-orange-400 my-0.5";
+        categoryLabel.innerText = "HIGH RISK";
+        categoryLabel.className = "text-[10px] font-semibold text-orange-300";
+        activePyramid.classList.add('border-orange-500');
+
+      } else if (tier === 4) {
+        bannerCard.className = "rounded-2xl p-5 sm:p-6 transition-all duration-300 border shadow-2xl relative overflow-hidden bg-gradient-to-br from-slate-900 via-red-950/40 to-slate-900 border-red-500/60";
+        badgePill.className = "px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-red-950 text-red-300 border border-red-600 pulse-badge";
+        badgePill.innerText = "Tier 4 • Very High Risk";
+        title.innerText = "Very High Risk (Intensive Complex Management)";
+        desc.innerText = "Frail, multi-morbid top utilizer with severe social vulnerability. Requires dedicated care manager and home-based support.";
+        scoreVal.className = "text-3xl font-black text-red-400 my-0.5";
+        categoryLabel.innerText = "VERY HIGH RISK";
+        categoryLabel.className = "text-[10px] font-semibold text-red-300";
+        activePyramid.classList.add('border-red-500');
+      }
+    }
+
+    // Personalized Action Plans Generator
+    function updateActionPlans(tier, clinicalScore, utilScore, sdohScore, housing, rxCost, transport, food) {
+      const clinicalList = document.getElementById('clinical-action-list');
+      const sdohList = document.getElementById('sdoh-action-list');
+      const clinicalUrgency = document.getElementById('clinical-urgency-tag');
+      const sdohUrgency = document.getElementById('sdoh-urgency-tag');
+
+      clinicalList.innerHTML = '';
+      sdohList.innerHTML = '';
+
+      // Clinical Action Items
+      if (tier === 1) {
+        clinicalUrgency.innerText = "Routine";
+        clinicalUrgency.className = "text-[10px] px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 font-semibold border border-emerald-800";
+        addListBullet(clinicalList, "Maintain routine annual PCP physical and age-appropriate screenings.", "emerald");
+        addListBullet(clinicalList, "Encourage digital health portal engagement for preventive updates.", "emerald");
+      } else if (tier === 2) {
+        clinicalUrgency.innerText = "Medium Action";
+        clinicalUrgency.className = "text-[10px] px-2 py-0.5 rounded bg-amber-950 text-amber-300 font-semibold border border-amber-800";
+        addListBullet(clinicalList, "Schedule PCP check-up within 30 days to close care gaps.", "amber");
+        addListBullet(clinicalList, "Enroll in Chronic Disease Self-Management or Diabetes Prevention Program (NDPP).", "amber");
+        addListBullet(clinicalList, "Pharmacist consultation for initial medication adherence review.", "amber");
+      } else if (tier === 3) {
+        clinicalUrgency.innerText = "High Priority";
+        clinicalUrgency.className = "text-[10px] px-2 py-0.5 rounded bg-orange-950 text-orange-300 font-semibold border border-orange-800";
+        addListBullet(clinicalList, "Assign Care Manager for multidisciplinary care coordination.", "orange");
+        addListBullet(clinicalList, "Schedule 14-day post-discharge or ER follow-up clinic visit.", "orange");
+        addListBullet(clinicalList, "Comprehensive medication reconciliation (polypharmacy review).", "orange");
+      } else if (tier === 4) {
+        clinicalUrgency.innerText = "Urgent / Immediate";
+        clinicalUrgency.className = "text-[10px] px-2 py-0.5 rounded bg-red-950 text-red-300 font-semibold border border-red-800 pulse-badge";
+        addListBullet(clinicalList, "Assign Dedicated Complex Care Manager (RN / NP led).", "red");
+        addListBullet(clinicalList, "Evaluate for In-Home Clinical Visits and Telemonitoring.", "red");
+        addListBullet(clinicalList, "Establish direct emergency escalation pathway to bypass ER.", "red");
+      }
+
+      // Social / SDOH Action Items
+      if (sdohScore === 0) {
+        sdohUrgency.innerText = "Stable";
+        sdohUrgency.className = "text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-400 font-semibold";
+        addListBullet(sdohList, "No acute social barriers reported. Continue annual SDOH screening.", "slate");
+      } else {
+        if (sdohScore > 40) {
+          sdohUrgency.innerText = "High SDOH Need";
+          sdohUrgency.className = "text-[10px] px-2 py-0.5 rounded bg-purple-950 text-purple-300 font-semibold border border-purple-800";
+        } else {
+          sdohUrgency.innerText = "Moderate Need";
+          sdohUrgency.className = "text-[10px] px-2 py-0.5 rounded bg-amber-950 text-amber-300 font-semibold border border-amber-800";
+        }
+
+        addListBullet(sdohList, "Connect with Community Health Worker (CHW) for resource navigation.", "amber");
+        
+        if (housing) addListBullet(sdohList, "Refer to local emergency housing stability & rent assistance programs.", "purple");
+        if (rxCost) addListBullet(sdohList, "Enroll in Prescription Copay Assistance / $4 Generic programs.", "purple");
+        if (transport) addListBullet(sdohList, "Arrange Non-Emergency Medical Transportation (NEMT) ride vouchers.", "purple");
+        if (food) addListBullet(sdohList, "Connect with local medically-tailored meal delivery or food pantry.", "purple");
+      }
+    }
+
+    function addListBullet(parentEl, text, color) {
+      const li = document.createElement('li');
+      li.className = 'flex items-start gap-2';
+      
+      let iconColor = 'text-emerald-400';
+      if (color === 'amber') iconColor = 'text-amber-400';
+      if (color === 'orange') iconColor = 'text-orange-400';
+      if (color === 'red') iconColor = 'text-red-400';
+      if (color === 'purple') iconColor = 'text-purple-400';
+      if (color === 'slate') iconColor = 'text-slate-500';
+
+      li.innerHTML = `<i class="fa-solid fa-angle-right ${iconColor} mt-0.5 text-xs"></i> <span>${text}</span>`;
+      parentEl.appendChild(li);
+    }
+
+    // Step Wizard Navigation
+    function switchStep(stepNum) {
+      currentStep = stepNum;
+
+      // Update Tabs styling
+      for (let i = 1; i <= 4; i++) {
+        const tab = document.getElementById(`step-tab-${i}`);
+        const content = document.getElementById(`step-content-${i}`);
+
+        if (i === stepNum) {
+          tab.className = "step-tab py-2 rounded-lg bg-blue-600 text-white font-semibold transition shadow-md";
+          content.classList.remove('hidden');
+        } else {
+          tab.className = "step-tab py-2 rounded-lg text-slate-400 hover:text-white transition";
+          content.classList.add('hidden');
+        }
+      }
+
+      // Update Back / Next button state
+      const prevBtn = document.getElementById('prev-step-btn');
+      const nextBtn = document.getElementById('next-step-btn');
+      const indicator = document.getElementById('step-indicator');
+
+      indicator.innerText = `Step ${stepNum} of 4`;
+
+      if (stepNum === 1) {
+        prevBtn.disabled = true;
+        prevBtn.classList.add('opacity-50', 'cursor-not-allowed');
+      } else {
+        prevBtn.disabled = false;
+        prevBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+      }
+
+      if (stepNum === 4) {
+        nextBtn.innerHTML = `<span>Complete</span> <i class="fa-solid fa-check"></i>`;
+      } else {
+        nextBtn.innerHTML = `<span>Next</span> <i class="fa-solid fa-arrow-right"></i>`;
+      }
+    }
+
+    function nextStep() {
+      if (currentStep < 4) {
+        switchStep(currentStep + 1);
+      } else {
+        showToast("Assessment complete! Stratification updated.");
+      }
+    }
+
+    function prevStep() {
+      if (currentStep > 1) {
+        switchStep(currentStep - 1);
+      }
+    }
+
+    // Manual Pyramid Row Click Handler
+    function setManualTier(tierNum) {
+      if (tierNum === 1) loadPreset('healthy');
+      if (tierNum === 2) loadPreset('rising');
+      if (tierNum === 3) loadPreset('complex');
+      if (tierNum === 4) loadPreset('veryhigh');
+      showToast(`Loaded sample profile for Tier ${tierNum}`);
+    }
+
+    // Load Presets
+    function loadPreset(presetKey) {
+      const data = PRESETS[presetKey];
+      if (!data) return;
+
+      document.getElementById('age-group').value = data.age;
+      document.getElementById('pcp-visits').value = data.pcp;
+      document.getElementById('insurance-status').value = data.insurance;
+
+      // Checkboxes
+      const conditionIds = ['cond-diabetes', 'cond-htn', 'cond-chf', 'cond-copd', 'cond-ckd', 'cond-depression'];
+      conditionIds.forEach(id => {
+        document.getElementById(id).checked = data.conditions.includes(id);
+      });
+
+      document.getElementById('uncontrolled-biometrics').checked = data.uncontrolled;
+      document.getElementById('polypharmacy').checked = data.polypharmacy;
+
+      document.getElementById('er-visits').value = data.er;
+      document.getElementById('inpatient-admissions').value = data.inpatient;
+      document.getElementById('readmission-history').checked = data.readmission;
+
+      const sdohIds = ['sdoh-housing', 'sdoh-food', 'sdoh-transport', 'sdoh-rx', 'sdoh-isolation'];
+      sdohIds.forEach(id => {
+        document.getElementById(id).checked = data.sdoh.includes(id);
+      });
+
+      calculateRisk();
+      showToast(`Preset '${presetKey.toUpperCase()}' applied!`);
+    }
+
+    // Reset Form
+    function resetForm() {
+      document.getElementById('risk-assessment-form').reset();
+      calculateRisk();
+      switchStep(1);
+      showToast("Assessment form reset.");
+    }
+
+    // QR Code Share Modal Logic
+    function openQRShareModal() {
+      const modal = document.getElementById('qr-modal');
+      const container = document.getElementById('qrcode-container');
+      const badge = document.getElementById('modal-tier-badge');
+      const summaryText = document.getElementById('modal-summary-text');
+
+      container.innerHTML = ''; // clear existing
+
+      const score = document.getElementById('total-score-value').innerText;
+      const tierText = document.getElementById('tier-badge-pill').innerText;
+      
+      badge.innerText = tierText;
+      summaryText.innerText = `Total Risk Score: ${score}/100 | Generated in Real-Time`;
+
+      // Encapsulate current application snapshot into shareable payload
+      const shareUrl = window.location.href;
+
+      qrcodeObj = new QRCode(container, {
+        text: shareUrl,
+        width: 160,
+        height: 160,
+        colorDark : "#0f172a",
+        colorLight : "#ffffff",
+        correctLevel : QRCode.CorrectLevel.H
+      });
+
+      modal.classList.remove('hidden');
+    }
+
+    function closeQRShareModal() {
+      document.getElementById('qr-modal').classList.add('hidden');
+    }
+
+    function openInfoModal() {
+      document.getElementById('info-modal').classList.remove('hidden');
+    }
+
+    function closeInfoModal() {
+      document.getElementById('info-modal').classList.add('hidden');
+    }
+
+    function copyShareableLink() {
+      const dummyText = `CareStratify PHM Report\nResult: ${document.getElementById('tier-badge-pill').innerText}\nRisk Score: ${document.getElementById('total-score-value').innerText}/100\nURL: ${window.location.href}`;
+      
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(dummyText);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = dummyText;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+
+      showToast("Care summary copied to clipboard!");
+      closeQRShareModal();
+    }
+
+    // Toast Alert Helper
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-msg').innerText = msg;
+      
+      toast.classList.remove('translate-y-20', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+
+      setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('translate-y-20', 'opacity-0');
+      }, 3000);
+    }
+
+    // Initialize on window load
+    window.onload = function() {
+      calculateRisk();
+    };
+  </script>
+</body>
+</html>
+```
