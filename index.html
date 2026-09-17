@@ -556,7 +556,7 @@
         <!-- Clinical Action Plan -->
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col justify-between">
           <div>
-            <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-3">
+            <div class="flex items-center justify-between border-b border-slate-800 -3 mb-3">
               <h4 class="text-xs font-bold uppercase tracking-wider text-blue-400 flex items-center gap-1.5">
                 <i class="fa-solid fa-user-doctor"></i> Clinical Intervention Plan
               </h4>
@@ -629,6 +629,17 @@
         <h3 class="text-lg font-bold text-white">Care Management QR Code</h3>
         <p class="text-xs text-slate-400 mt-1">Scan to load this patient's real-time risk stratification summary on mobile</p>
 
+        <div id="qrModal" class="modal">
+      <div class="modal-content">
+        <h3>Share Stratification Report</h3>
+        
+        <!-- 1. Target container where the image will render -->
+        <div id="qrCodeContainer"></div> 
+        
+        <!-- 2. Share button for mobile devices -->
+        <button id="shareQrBtn" class="btn">Share Report</button>
+      </div>
+        </div>
         <!-- QR Code Container -->
         <div class="my-5 p-4 bg-white rounded-2xl inline-block shadow-lg" id="qrcode-container"></div>
 
@@ -1242,4 +1253,46 @@
   </script>
 </body>
 </html>
-```
+
+function generateIOSFriendlyQR(textUrl) {
+        const qrContainer = document.getElementById('qrCodeContainer');
+        const encodedUrl = encodeURIComponent(textUrl);
+        const qrImageUrl = `https://quickchart.io/qr?text=${encodedUrl}&size=300&margin=2`;
+
+        qrContainer.innerHTML = `
+          <div style="text-align: center;">
+            <img id="qrImage" src="${qrImageUrl}" alt="CareStratify QR Code" 
+                 style="width: 220px; height: 220px; border-radius: 12px; border: 1px solid #e5e7eb; margin: 10px auto; display: block;" />
+            <p style="font-size: 0.85rem; color: #6b7280; margin-top: 8px;">
+              <em>Tap and hold image to save, or tap Share below.</em>
+            </p>
+          </div>
+        `;
+
+        const shareBtn = document.getElementById('shareQrBtn');
+        if (shareBtn) {
+          shareBtn.onclick = async () => {
+            if (navigator.share) {
+              try {
+                await navigator.share({
+                  title: 'CareStratify Assessment',
+                  text: 'Scan or open this Population Health Stratification Report:',
+                  url: textUrl
+                });
+              } catch (err) {
+                console.log('Share dismissed');
+              }
+            } else {
+              navigator.clipboard.writeText(textUrl);
+              alert('Link copied to clipboard!');
+            }
+          };
+        }
+      }
+
+      // Call this function whenever you open the modal or generate the report:
+      // generateIOSFriendlyQR(window.location.href);
+    </script>
+  </body>
+</html>
+
