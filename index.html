@@ -343,6 +343,16 @@
             </div>
           </div>
 
+          <!-- Individualized Tier Management Plan Section -->
+<div id="tierManagementCard" style="margin-top: 20px; padding: 20px; background: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+  <h3 style="margin-top: 0; color: #1f2937; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">
+    📋 Individualized Care Management Plan
+  </h3>
+  <div id="tierManagementContent">
+    <!-- Dynamic content renders here -->
+  </div>
+</div>
+
           <!-- Wizard Step Buttons Footer -->
           <div class="mt-5 pt-4 border-t border-slate-800 flex justify-between items-center">
             <button type="button" id="prev-step-btn" onclick="prevStep()" class="px-3.5 py-2 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 transition opacity-50 cursor-not-allowed" disabled>
@@ -742,7 +752,9 @@
         er: 0,
         inpatient: 0,
         readmission: false,
-        sdoh: []
+    // Call this line whenever the calculated tier changes (pass 1, 2, 3, or 4)
+updateTierManagementPlan(calculatedTier);
+    sdoh: []
       },
       complex: {
         age: '40-64',
@@ -839,6 +851,9 @@
       if (isolation) { sdohScore += 15; sdohCount++; }
       if (insurance === 'uninsured' || insurance === 'medicaid') sdohScore += 10;
       sdohScore = Math.min(100, sdohScore);
+
+      // Call this line whenever the calculated tier changes (pass 1, 2, 3, or 4)
+updateTierManagementPlan(calculatedTier);
 
       // --- COMPOSITE SCORE & SDOH MULTIPLIER ---
       let rawComposite = Math.round((clinicalScore * 0.40) + (utilScore * 0.40) + (sdohScore * 0.20));
@@ -1295,4 +1310,104 @@ function generateIOSFriendlyQR(textUrl) {
     </script>
   </body>
 </html>
+
+// Data dictionary defining individual management strategies per tier
+const TIER_MANAGEMENT_PLANS = {
+  1: {
+    title: "Tier 1: Low Risk (Preventive Care Strategy)",
+    color: "#10b981",
+    clinical: [
+      "Schedule routine annual health check-up and screening (NCD/PhilPEN baseline)",
+      "Maintain routine vaccination schedule (Flu, Pneumococcal as eligible)",
+      "Monitor age-appropriate cancer screenings (Mammogram, Pap smear, Colorectal)"
+    ],
+    sdoh: [
+      "Provide digital health tools and portal access for self-management",
+      "Encourage community wellness activities and routine nutrition literacy"
+    ],
+    followup: "Annual check-up (Every 12 months)"
+  },
+  2: {
+    title: "Tier 2: Rising Risk (Early Disease & Gap Closure Strategy)",
+    color: "#f59e0b",
+    clinical: [
+      "Initiate targeted lifestyle modification protocol (Dietary coaching, 150 mins/week exercise)",
+      "Close identified care gaps (e.g., missed FBS lab test, overdue BP check)",
+      "Tobacco cessation counseling (5As protocol) if applicable"
+    ],
+    sdoh: [
+      "Enroll in Diabetes Prevention Program (DPP) or community health classes",
+      "Screen for shift-work stress, nutrition access, and sleep hygiene barriers"
+    ],
+    followup: "Quarterly PCP visit (Every 3–6 months) + CHW check-in"
+  },
+  3: {
+    title: "Tier 3: High Risk (Multidisciplinary Chronic Care Strategy)",
+    color: "#f97316",
+    clinical: [
+      "Assign a Care Coordinator for active chronic disease management (Diabetes, HTN, COPD)",
+      "Conduct pharmacy audit for medication adherence and polypharmacy review",
+      "Order routine diagnostic panels (HbA1c, eGFR, lipid panel) every 3 months"
+    ],
+    sdoh: [
+      "Evaluate transportation barriers; enroll in medical transit support if needed",
+      "Connect with local food pantries or prescription subsidy programs"
+    ],
+    followup: "Monthly check-ins + 48-hour outreach following acute care visits"
+  },
+  4: {
+    title: "Tier 4: Very High Risk (Intensive Complex Care Strategy)",
+    color: "#ef4444",
+    clinical: [
+      "Enroll in Intensive Complex Care Management (ICCM) with dedicated Nurse Case Manager",
+      "Establish home health or telehealth monitoring protocol",
+      "Conduct comprehensive medication reconciliation and specialist care alignment"
+    ],
+    sdoh: [
+      "Urgent Community Health Worker (CHW) deployment for immediate housing/financial crisis navigation",
+      "Arrange home-delivered care, caregiver relief support, and emergency medical transport (NEMT)"
+    ],
+    followup: "Weekly / Bi-weekly touchpoints + 24/7 hotline access"
+  }
+};
+
+/**
+ * Updates the Individual Management Plan UI based on active tier number (1, 2, 3, or 4)
+ * @param {number} tierNumber - The active tier (1-4)
+ */
+function updateTierManagementPlan(tierNumber) {
+  const container = document.getElementById('tierManagementContent');
+  const plan = TIER_MANAGEMENT_PLANS[tierNumber] || TIER_MANAGEMENT_PLANS[1];
+
+  if (!container) return;
+
+  container.innerHTML = `
+    <div style="padding: 10px; border-left: 4px solid ${plan.color}; background-color: #f9fafb; margin-bottom: 15px; border-radius: 0 8px 8px 0;">
+      <h4 style="margin: 0; color: ${plan.color}; font-size: 1.1rem;">${plan.title}</h4>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 15px;">
+      <!-- Clinical Strategy -->
+      <div style="background: #f3f4f6; padding: 12px; border-radius: 8px;">
+        <h5 style="margin-top: 0; color: #111827;">🩺 Clinical Care Strategy</h5>
+        <ul style="margin: 0; padding-left: 18px; font-size: 0.9rem; color: #374151;">
+          ${plan.clinical.map(item => `<li style="margin-bottom: 6px;">${item}</li>`).join('')}
+        </ul>
+      </div>
+
+      <!-- SDOH Strategy -->
+      <div style="background: #f3f4f6; padding: 12px; border-radius: 8px;">
+        <h5 style="margin-top: 0; color: #111827;">🤝 SDOH & Community Intervention</h5>
+        <ul style="margin: 0; padding-left: 18px; font-size: 0.9rem; color: #374151;">
+          ${plan.sdoh.map(item => `<li style="margin-bottom: 6px;">${item}</li>`).join('')}
+        </ul>
+      </div>
+    </div>
+
+    <!-- Follow-up Interval -->
+    <div style="margin-top: 15px; padding: 10px; background: #eef2ff; border-radius: 6px; font-size: 0.9rem; color: #3730a3; display: flex; align-items: center; gap: 8px;">
+      <span>⏱️ <strong>Recommended Monitoring Interval:</strong> ${plan.followup}</span>
+    </div>
+  `;
+}
 
