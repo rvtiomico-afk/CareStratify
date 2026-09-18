@@ -216,7 +216,55 @@
       border-color: var(--primary);
     }
 
-    /* Clean Checkbox Grid */
+    /* Biometrics Inputs Grid */
+    .bio-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+    }
+
+    @media (max-width: 600px) {
+      .bio-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Auto Computed BMI Result Card */
+    .computed-bmi-box {
+      margin-bottom: 20px;
+      padding: 14px 16px;
+      background: #0b0f19;
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .bmi-info-label {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .bmi-value-highlight {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    .bmi-badge-pill {
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 0.8rem;
+      color: white;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Checkbox Grid */
     .checkbox-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -520,24 +568,45 @@
     </header>
 
     <div class="dashboard-grid">
-      <!-- LEFT COLUMN: Inputs -->
+      <!-- LEFT COLUMN: Patient Inputs -->
       <div class="left-col">
         <div class="card">
           <div class="card-title">
-            <span>🩺 Patient Clinical Indicators</span>
+            <span>🩺 CareStratify Patient Biometrics</span>
           </div>
 
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-            <div class="form-group">
+          <!-- Height & Weight Input Controls -->
+          <div class="bio-grid" style="margin-bottom: 14px;">
+            <div class="form-group" style="margin-bottom:0;">
               <label for="ptAge">Age (Years)</label>
               <input type="number" id="ptAge" class="form-control" value="45" min="1" max="120" oninput="calculateRisk()">
             </div>
-            <div class="form-group">
-              <label for="ptBMI">BMI (kg/m² - Asian Cutoffs)</label>
-              <input type="number" id="ptBMI" class="form-control" value="22.5" step="0.1" oninput="calculateRisk()">
+
+            <div class="form-group" style="margin-bottom:0;">
+              <label for="ptHeight">Height (cm)</label>
+              <input type="number" id="ptHeight" class="form-control" value="165" step="0.5" min="50" max="250" placeholder="e.g. 165" oninput="calculateRisk()">
+            </div>
+
+            <div class="form-group" style="margin-bottom:0;">
+              <label for="ptWeight">Weight (kg)</label>
+              <input type="number" id="ptWeight" class="form-control" value="60" step="0.1" min="10" max="300" placeholder="e.g. 60" oninput="calculateRisk()">
             </div>
           </div>
 
+          <!-- CareStratify Computed BMI Output Display -->
+          <div class="computed-bmi-box">
+            <div>
+              <div class="bmi-info-label">CareStratify Computed BMI</div>
+              <div class="bmi-value-highlight">
+                <span id="bmiVal">22.0</span> <span style="font-size:0.85rem; font-weight:normal; color:var(--text-muted);">kg/m²</span>
+              </div>
+            </div>
+            <div id="bmiCategoryPill" class="bmi-badge-pill" style="background-color: var(--tier-1);">
+              Normal Weight
+            </div>
+          </div>
+
+          <!-- PhilPEN Emergency Red Flags -->
           <div class="form-group">
             <label style="color:#ef4444; font-weight:700;">PhilPEN Emergency Red Flags (Immediate Referral)</label>
             <div class="checkbox-grid">
@@ -577,6 +646,7 @@
             </div>
           </div>
 
+          <!-- Comorbidities -->
           <div class="form-group">
             <label>Comorbidities & Clinical Complexity</label>
             <div class="checkbox-grid">
@@ -706,7 +776,7 @@
         </div>
       </div>
 
-      <!-- RIGHT COLUMN: Output & Plan -->
+      <!-- RIGHT COLUMN: Stratification Results & Care Plan -->
       <div class="right-col">
         <!-- Risk Banner -->
         <div id="riskBanner" class="risk-banner" style="background-color: var(--tier-1);">
@@ -756,7 +826,7 @@
           </div>
         </div>
 
-        <!-- Individual Management Plan -->
+        <!-- Care Plan Block -->
         <div class="card">
           <div class="card-title">📋 Individualized Care Management Plan</div>
           <div id="mgmtContent"></div>
@@ -770,85 +840,65 @@
     </div>
   </div>
 
-  <!-- MODAL 1: About CareStratify -->
+  <!-- MODALS -->
   <div id="csModal" class="modal-overlay">
     <div class="modal-box">
       <button class="modal-close" onclick="closeModal('csModal')">&times;</button>
       <h3 style="color:#ffffff; margin-bottom:8px;">🏥 About CareStratify Engine</h3>
       <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:15px;">
-        CareStratify combines the <strong>DOH PhilPEN (Philippine Package of Essential NCD Interventions)</strong> guidelines with standard population health risk tier stratification.
+        CareStratify integrates the <strong>DOH PhilPEN</strong> guidelines with population health risk stratification using automated height/weight BMI calculations and SDOH indicators.
       </p>
       <div class="info-item">
         <h4>Key Objectives</h4>
-        <p>Enables primary health providers to rapidly evaluate NCD risk factors, incorporate social determinants of health (SDOH), and deliver standardized clinical pathways across populations.</p>
+        <p>Enables health providers to quickly compute patient BMI, evaluate non-communicable disease risks, factor in SDOH barriers, and trigger tailored interventions.</p>
       </div>
     </div>
   </div>
 
-  <!-- MODAL 2: Framework Guide -->
   <div id="guideModal" class="modal-overlay">
     <div class="modal-box">
       <button class="modal-close" onclick="closeModal('guideModal')">&times;</button>
       <h3 style="color:#ffffff; margin-bottom:12px;">ℹ️ Assessment Framework Guide</h3>
-      
       <div class="info-item">
-        <h4>🚨 PhilPEN Red Flag Emergency Override</h4>
-        <p>Any positive response for acute cardiac, cerebrovascular (stroke FAST), severe dyspnea, or altered neurological status immediately bypasses standard scoring and elevates the patient to Tier 4 Emergency Triage.</p>
+        <h4>⚖️ Asian BMI Classification Standard</h4>
+        <p>
+          • <strong>Underweight:</strong> &lt; 18.5 kg/m²<br>
+          • <strong>Normal Weight:</strong> 18.5 – 22.9 kg/m²<br>
+          • <strong>Overweight / At-Risk:</strong> 23.0 – 27.4 kg/m²<br>
+          • <strong>Obese:</strong> ≥ 27.5 kg/m²
+        </p>
       </div>
       <div class="info-item">
-        <h4>⚖️ Asian BMI Cutoffs (WHO Regional Standard)</h4>
-        <p>Underweight: &lt;18.5 | Normal: 18.5–22.9 | Overweight / At-Risk: 23.0–27.4 | Obese: ≥27.5 kg/m². Accounts for elevated cardiometabolic risk at lower BMI in Asian populations.</p>
-      </div>
-      <div class="info-item">
-        <h4>🌐 SDOH Compound Escalation Rule</h4>
-        <p>Social barriers directly worsen disease outcomes. Patients presenting with 2 or more active SDOH indicators receive an automatic +1 Tier escalation in risk priority.</p>
+        <h4>🚨 Red Flag Priority Rule</h4>
+        <p>Any acute cardiac, stroke, dyspnea, or neuro emergency immediately places the patient into Tier 4.</p>
       </div>
     </div>
   </div>
 
-  <!-- MODAL 3: Philippine Emergency Hotlines -->
   <div id="hotlineModal" class="modal-overlay">
     <div class="modal-box">
       <button class="modal-close" onclick="closeModal('hotlineModal')">&times;</button>
-      <h3 style="color:#ffffff; margin-bottom:12px;">☎️ Philippine Health Hotlines</h3>
-      
+      <h3 style="color:#ffffff; margin-bottom:12px;">☎️ Emergency Hotlines</h3>
       <div class="info-item">
-        <h4>🚨 Emergency National Command</h4>
-        <p><strong>911</strong> (Nationwide Emergency Response)</p>
+        <h4>🚨 National Emergency Command</h4>
+        <p><strong>911</strong></p>
       </div>
       <div class="info-item">
-        <h4>🏥 DOH Emergency Operations Center (EOC)</h4>
-        <p><strong>1555</strong> / <strong>(02) 8651-7800</strong> (Department of Health Hotlines)</p>
-      </div>
-      <div class="info-item">
-        <h4>🧠 NCMH Crisis Helpline</h4>
-        <p><strong>1553</strong> (Toll-free) / <strong>0917-899-8727</strong> (Mental Health Support)</p>
-      </div>
-      <div class="info-item">
-        <h4>💳 PhilHealth Assistance (KonSulfatation)</h4>
-        <p><strong>(02) 8441-7442</strong> (24/7 Client Support)</p>
-      </div>
-      <div class="info-item">
-        <h4>🚑 Philippine Red Cross Ambulance</h4>
-        <p><strong>143</strong> / <strong>(02) 8790-2300</strong></p>
+        <h4>🏥 DOH Emergency Hotline</h4>
+        <p><strong>1555</strong> / <strong>(02) 8651-7800</strong></p>
       </div>
     </div>
   </div>
 
-  <!-- MODAL 4: Patient Summary QR Modal -->
   <div id="qrModal" class="modal-overlay">
     <div class="modal-box" style="text-align:center;">
       <button class="modal-close" onclick="closeModal('qrModal')">&times;</button>
       <h3 style="color:#ffffff; margin-bottom:4px;">Patient Summary QR Code</h3>
-      <p style="font-size:0.8rem; color:var(--text-muted);">Scan with any phone camera to read full clinical assessment details</p>
+      <p style="font-size:0.8rem; color:var(--text-muted);">Scan to view full clinical details</p>
       
       <div style="width:220px; height:220px; margin:15px auto; padding:8px; background:white; border-radius:12px;">
         <div id="qrContainer"></div>
       </div>
-
-      <p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:8px;">
-        <em>Text Summary Encoded inside QR Code:</em>
-      </p>
 
       <div id="summaryPreview" class="summary-preview-box"></div>
 
@@ -888,24 +938,65 @@
       }
     };
 
+    let globalBmiSummary = { val: 0, cat: 'Normal', height: 165, weight: 60 };
+
     function calculateRisk() {
+      // 1. Compute BMI directly from Height (cm) and Weight (kg) inputs
+      const heightCm = parseFloat(document.getElementById('ptHeight').value) || 0;
+      const weightKg = parseFloat(document.getElementById('ptWeight').value) || 0;
+
+      let bmi = 0;
+      let bmiCategory = "Unknown";
+      let bmiColor = "var(--tier-1)";
+      let bmiPts = 0;
+
+      if (heightCm > 0 && weightKg > 0) {
+        const heightM = heightCm / 100;
+        bmi = weightKg / (heightM * heightM);
+        bmi = Math.round(bmi * 10) / 10;
+
+        // Asian BMI Cutoff Classification
+        if (bmi < 18.5) {
+          bmiCategory = "Underweight";
+          bmiColor = "#3b82f6";
+          bmiPts = 5;
+        } else if (bmi <= 22.9) {
+          bmiCategory = "Normal Weight";
+          bmiColor = "var(--tier-1)";
+          bmiPts = 0;
+        } else if (bmi <= 27.4) {
+          bmiCategory = "Overweight / At-Risk";
+          bmiColor = "var(--tier-2)";
+          bmiPts = 10;
+        } else {
+          bmiCategory = "Obese (Asian Cutoff)";
+          bmiColor = "var(--tier-4)";
+          bmiPts = 20;
+        }
+      }
+
+      // Update computed display in CareStratify interface
+      document.getElementById('bmiVal').innerText = bmi > 0 ? bmi.toFixed(1) : '--';
+      const bmiPill = document.getElementById('bmiCategoryPill');
+      bmiPill.innerText = bmiCategory;
+      bmiPill.style.backgroundColor = bmiColor;
+
+      globalBmiSummary = { val: bmi, cat: bmiCategory, height: heightCm, weight: weightKg };
+
+      // 2. Compute Clinical & SDOH Risk Scores
       const isACS = document.getElementById('rfACS').checked;
       const isStroke = document.getElementById('rfStroke').checked;
       const isDyspnea = document.getElementById('rfDyspnea').checked;
       const isNeuro = document.getElementById('rfNeuro').checked;
       const isRedFlag = isACS || isStroke || isDyspnea || isNeuro;
 
-      let clinicalPts = 0;
+      let clinicalPts = bmiPts;
       if (document.getElementById('condHTN').checked) clinicalPts += 15;
       if (document.getElementById('condDiabetes').checked) clinicalPts += 20;
       if (document.getElementById('condHF').checked) clinicalPts += 25;
       if (document.getElementById('condCOPD').checked) clinicalPts += 20;
       if (document.getElementById('condCKD').checked) clinicalPts += 25;
       if (document.getElementById('condPolypharm').checked) clinicalPts += 15;
-
-      const bmi = parseFloat(document.getElementById('ptBMI').value) || 22;
-      if (bmi >= 23 && bmi < 27.5) clinicalPts += 10;
-      else if (bmi >= 27.5) clinicalPts += 20;
 
       const erVisits = parseInt(document.getElementById('erVisits').value) || 0;
       let utilPts = erVisits * 25;
@@ -947,7 +1038,7 @@
       const alert = document.getElementById('sdohAlert');
 
       const configs = {
-        1: { name: "Tier 1: Low Risk", color: "var(--tier-1)", desc: "Healthy population baseline. Focus on routine primary prevention." },
+        1: { name: "Tier 1: Low Risk", color: "var(--tier-1)", desc: "Healthy baseline population. Focus on routine primary prevention." },
         2: { name: "Tier 2: Rising Risk", color: "var(--tier-2)", desc: "1-2 uncontrolled risk factors. Lifestyle coaching & disease management." },
         3: { name: "Tier 3: High Risk", color: "var(--tier-3)", desc: "Multiple comorbidities or moderate hospital utilization. Needs care coordination." },
         4: { name: "Tier 4: Very High Risk", color: "var(--tier-4)", desc: "Complex high utilizer or emergency red flag. Requires intensive case management." }
@@ -1005,7 +1096,8 @@
 
     function resetForm() {
       document.getElementById('ptAge').value = "45";
-      document.getElementById('ptBMI').value = "22.5";
+      document.getElementById('ptHeight').value = "165";
+      document.getElementById('ptWeight').value = "60";
       document.getElementById('rfACS').checked = false;
       document.getElementById('rfStroke').checked = false;
       document.getElementById('rfDyspnea').checked = false;
@@ -1024,10 +1116,13 @@
       resetForm();
       if (t === 2) {
         document.getElementById('condHTN').checked = true;
-        document.getElementById('ptBMI').value = "28.0";
+        document.getElementById('ptHeight').value = "165";
+        document.getElementById('ptWeight').value = "76";
         document.getElementById('sdohTobacco').checked = true;
       } else if (t === 3) {
         document.getElementById('condCOPD').checked = true;
+        document.getElementById('ptHeight').value = "160";
+        document.getElementById('ptWeight').value = "72";
         document.getElementById('erVisits').value = "1";
         document.getElementById('sdohHousing').checked = true;
         document.getElementById('sdohFood').checked = true;
@@ -1035,6 +1130,8 @@
         document.getElementById('condDiabetes').checked = true;
         document.getElementById('condHF').checked = true;
         document.getElementById('condPolypharm').checked = true;
+        document.getElementById('ptHeight').value = "165";
+        document.getElementById('ptWeight').value = "82";
         document.getElementById('erVisits').value = "3";
         document.getElementById('sdohTransport').checked = true;
       }
@@ -1046,7 +1143,6 @@
 
     function openQRModal() {
       const age = document.getElementById('ptAge').value || 'N/A';
-      const bmi = document.getElementById('ptBMI').value || 'N/A';
 
       const redFlags = [];
       if (document.getElementById('rfACS').checked) redFlags.push('Acute Cardiac Event');
@@ -1084,7 +1180,8 @@ Clinical Score: ${txtClinical}
 SDOH Score: ${txtSdoh}
 
 Biometrics:
-• Age: ${age} yrs | BMI: ${bmi} kg/m²
+• Age: ${age} yrs | Ht: ${globalBmiSummary.height}cm | Wt: ${globalBmiSummary.weight}kg
+• BMI: ${globalBmiSummary.val} kg/m² (${globalBmiSummary.cat})
 
 Clinical Profile:
 • Red Flags: ${redFlags.length ? redFlags.join(', ') : 'None'}
